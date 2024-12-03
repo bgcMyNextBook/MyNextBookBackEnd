@@ -1,0 +1,63 @@
+{
+  "Name": "Dirk Pitt",
+  "seriesId": "9cd50e11-7dfd-4a89-8d16-930747565c21",
+  "booksInSeries": [
+    {
+      "BookTitle": "Pacific Vortex!",
+      "Author": "Clive Cussler",
+      "ISBN_10": "0553276328",
+      "ISBN_13": "9780553276329",
+      "sysMynbIDAsString": "271a8ee5-0fcb-406e-8bfc-ff5d4e57f4a5"
+    },
+    {
+      "BookTitle": "The Mediterranean Caper",
+      "Author": "Clive Cussler",
+      "ISBN_10": "0425197395",
+      "ISBN_13": "9780425197394",
+      "sysMynbIDAsString": "04f4808b-97f9-4ed6-b5b6-c483245416c4"
+    },
+    {
+      "BookTitle": "Raise the Titanic!",
+      "Author": "Clive Cussler",
+      "ISBN_10": "0425194523",
+      "ISBN_13": "9780425194522",
+      "sysMynbIDAsString": "76d1feaf-e6cc-4f37-b2e4-bd02be8cc044"
+    },
+    {
+      "BookTitle": "Sahara",
+      "Author": "Clive Cussler",
+      "ISBN_10": "1439135681",
+      "ISBN_13": "9781439135686",
+      "sysMynbIDAsString": "496b38e0-42e3-4d43-bcb6-889c77b0dc8f"
+    },
+    {
+      "BookTitle": "Inca Gold",
+      "Author": "Clive Cussler",
+      "ISBN_10": "1416525726",
+      "ISBN_13": "9781416525721",
+      "sysMynbIDAsString": "df368fce-3966-46e3-a43a-491fc18cf5f0"
+    },
+    {
+      "BookTitle": "Treasure of Khan",
+      "Author": "Clive Cussler",
+      "ISBN_10": "0425218236",
+      "ISBN_13": "9780425218235",
+      "sysMynbIDAsString": "97fe24ac-f81d-4826-b753-019dc45bdda7"
+    },
+    {
+      "BookTitle": "Crescent Dawn",
+      "Author": "Clive Cussler",
+      "ISBN_10": "0425242390",
+      "ISBN_13": "9780425242391",
+      "sysMynbIDAsString": "918d0746-2eed-4421-9b32-25611f0f3ff1"
+    },
+    {
+      "BookTitle": "Havana Storm",
+      "Author": "Clive Cussler",
+      "ISBN_10": "0399172920",
+      "ISBN_13": "9780399172922",
+      "sysMynbIDAsString": "d0f4b4eb-dd9e-43a4-ac39-b2eadbd02748"
+    }
+  ],
+  "booksMissingFromSeries": []
+}
