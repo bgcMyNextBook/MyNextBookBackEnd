@@ -25,48 +25,28 @@ using static System.Net.WebRequestMethods;
 using System.Net;
 using System.Security;
 using Azure.Security.KeyVault.Secrets;
+using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 
 namespace MyNextBookBackEnd
 {
     public class RefreshSeries
     {
         private readonly ILogger<RefreshSeries> _logger;
+        private readonly IConfiguration _configuration;
 
         public RefreshSeries(ILogger<RefreshSeries> logger)
         {
             _logger = logger;
+            //_configuration = configuration;
         }
 
         [Function("RefreshSeries")]
         public async Task<HttpResponseData> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
         {
             _logger.LogInformation("C# HTTP trigger function processed a request.");
-
-            SentrySdk.Init(options =>
-            {
-                // A Sentry Data Source Name (DSN) is required.
-                // See https://docs.sentry.io/product/sentry-basics/dsn-explainer/
-                // You can set it in the SENTRY_DSN environment variable, or you can set it in code here.
-                options.Dsn = "https://41990b90035138cb0a9dbdb374ca61e2@o4507073550155776.ingest.us.sentry.io/4507073559396352";
-
-                // When debug is enabled, the Sentry client will emit detailed debugging information to the console.
-                // This might be helpful, or might interfere with the normal operation of your application.
-                // We enable it here for demonstration purposes when first trying Sentry.
-                // You shouldn't do this in your applications unless you're troubleshooting issues with Sentry.
-                options.Debug = true;
-
-                // This option is recommended. It enables Sentry's "Release Health" feature.
-                options.AutoSessionTracking = true;
-
-                // Enabling this option is recommended for client applications only. It ensures all threads use the same global scope.
-                options.IsGlobalModeEnabled = false;
-
-                // Example sample rate for your transactions: captures 10% of transactions
-                options.TracesSampleRate = 0.1;
-            });
-            // Arrange
-            SentrySdk.CaptureMessage("Start azure function refreshseries");
+       
             // Deserialize the request body into SeriesToRefreshData
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var data = JsonConvert.DeserializeObject<SeriesToRefreshData>(requestBody);
@@ -77,7 +57,17 @@ namespace MyNextBookBackEnd
 
         public async Task<HttpResponseData> ProcessSeriesDataAsync(SeriesToRefreshData data, HttpRequestData req)
         {
+            DefaultAzureCredential credential = new DefaultAzureCredential();
 
+            // Get secrets from Azure Key Vault
+            string vaultUri = "https://kv-mynextbook.vault.azure.net/";
+
+            if (string.IsNullOrEmpty(vaultUri))
+            {
+                throw new InvalidOperationException("Vault URI is not configured.");
+            }
+            var keyVaultClient = new SecretClient(new Uri(vaultUri), credential);
+            KeyVaultSecret sentryDSNSecret = await keyVaultClient.GetSecretAsync("sentryDSN");
 
 
             SentrySdk.Init(options =>
@@ -85,13 +75,13 @@ namespace MyNextBookBackEnd
                 // A Sentry Data Source Name (DSN) is required.
                 // See https://docs.sentry.io/product/sentry-basics/dsn-explainer/
                 // You can set it in the SENTRY_DSN environment variable, or you can set it in code here.
-                options.Dsn = "https://41990b90035138cb0a9dbdb374ca61e2@o4507073550155776.ingest.us.sentry.io/4507073559396352";
+                options.Dsn = sentryDSNSecret.Value;
 
                 // When debug is enabled, the Sentry client will emit detailed debugging information to the console.
                 // This might be helpful, or might interfere with the normal operation of your application.
                 // We enable it here for demonstration purposes when first trying Sentry.
                 // You shouldn't do this in your applications unless you're troubleshooting issues with Sentry.
-                options.Debug = true;
+                options.Debug = false;
 
                 // This option is recommended. It enables Sentry's "Release Health" feature.
                 options.AutoSessionTracking = true;
@@ -131,37 +121,28 @@ namespace MyNextBookBackEnd
             catch (Exception ex)
             {
                 response = req.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
-                await response.WriteStringAsync(ex.ToString());
+                await response.WriteStringAsync(ex.Message);
                 return response;
             }
         }
-        //string endPoint = "https://ai-prototypes-vision.openai.azure.com";///openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview";
-        //"https://ai-prototypes-vision.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-15-preview"  
 
-        //https://ai-prototypes-vision.openai.azure.com/
-        //https://ai-prototypes-vision.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-08-01-preview
-        string modelDeployment = "gpt-4o";
 
         public async Task<SeriesToRefreshData> Refresh(SeriesToRefreshData data)
         {
             try
             {
-                // *******  CREATE AI CLIENT AND CONFIGURE PROMPT ********
 
-                DefaultAzureCredential credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-                {
-                    Diagnostics = { IsLoggingContentEnabled = true, IsLoggingEnabled = true },
-                    ExcludeEnvironmentCredential = true,
-                    ExcludeManagedIdentityCredential = true,
-                    ExcludeSharedTokenCacheCredential = true,
-                    ExcludeInteractiveBrowserCredential = true,
-                    ExcludeAzurePowerShellCredential = true,
-                    ExcludeVisualStudioCodeCredential = false,
-                    ExcludeAzureCliCredential = false
-                });
+
+                DefaultAzureCredential credential = new DefaultAzureCredential();
 
                 // Get secrets from Azure Key Vault
-                var keyVaultClient = new SecretClient(new Uri("https://kv-hubbrady438297829401.vault.azure.net/"), credential);
+                string vaultUri = "https://kv-mynextbook.vault.azure.net/";
+
+                if (string.IsNullOrEmpty(vaultUri))
+                {
+                    throw new InvalidOperationException("Vault URI is not configured.");
+                }
+                var keyVaultClient = new SecretClient(new Uri(vaultUri), credential);
                 KeyVaultSecret apiKeySecret = await keyVaultClient.GetSecretAsync("OpenAIApiKey");
                 KeyVaultSecret endPointSecret = await keyVaultClient.GetSecretAsync("OpenAIEndPoint");
                 KeyVaultSecret modelDeploymentSecret = await keyVaultClient.GetSecretAsync("OpenAIModelDeployment");
@@ -170,33 +151,57 @@ namespace MyNextBookBackEnd
                 string endPoint = endPointSecret.Value;
                 string modelDeployment = modelDeploymentSecret.Value;
 
+                // *******  CREATE AI CLIENT AND CONFIGURE PROMPT ********
                 AzureOpenAIClient openAIClient = new AzureOpenAIClient(new Uri(endPoint), new ApiKeyCredential(apiKey));
                 OpenAI.Chat.ChatClient chatClient = openAIClient.GetChatClient(modelDeployment);
-
                 OpenAI.Chat.ChatCompletionOptions options = new();
                 options.Temperature = 0.1f;
                 options.TopP = 1.0f;
                 options.MaxOutputTokenCount = 14000;
-                options.ResponseFormat = StructuredOutputsExtensions.CreateJsonSchemaFormat<SeriesToRefreshData>("SeriesToRefreshData", jsonSchemaIsStrict: true);
-                // learning guid will throw an error in CompleteChatAsync
+                options.ResponseFormat = StructuredOutputsExtensions.CreateJsonSchemaFormat<SeriesToRefreshData>("SeriesToRefreshData",
+                    jsonSchemaIsStrict: true, logger: _logger);
 
+                // *******  CALL AI ********
                 List<OpenAI.Chat.ChatMessage> messages = new List<OpenAI.Chat.ChatMessage>();
-
                 messages.Add(new SystemChatMessage("You are a librarian that helps to identify books that are missing from book series"));
-                string json = JsonConvert.SerializeObject(data);
-                messages.Add(new UserChatMessage($"given the following book series information {json} find books that should be in the series but are not. return those books in the schema format in the booksMissingFromSeries leaving sysMynbIDAsString as an empty string."));
+                messages.Add(new UserChatMessage($"given the following book series information {JsonConvert.SerializeObject(data)} find books that should be in the series but are not. return those books in the schema format in the booksMissingFromSeries leaving sysMynbIDAsString as an empty string."));
+
 
                 ClientResult<OpenAI.Chat.ChatCompletion>? completionResults = await chatClient.CompleteChatAsync(messages, options);
+
+                // *******  HANDLE AI RESULTS ********
+
+                //** NO RESULTS
                 if (completionResults == null)
                 {
                     _logger.LogInformation("No completion results returned");
                     throw new Exception("No completion results returned");
                 }
-                string jsonResults = completionResults.Value.Content[0].Text;// completionResults.Value.Content[0].Text.Replace("booksMissingFromSeries", "booksMissingFromSeries");
-                SeriesToRefreshData returnValue = JsonConvert.DeserializeObject<SeriesToRefreshData>(jsonResults);
-                return returnValue;
-            }
 
+                //** USEABLE RESULTS
+                if (completionResults.Value.FinishReason == ChatFinishReason.Stop)
+                {
+                    string jsonResults = completionResults.Value.Content[0].Text;
+                    SeriesToRefreshData? returnValue = JsonConvert.DeserializeObject<SeriesToRefreshData>(jsonResults);
+                    return returnValue;
+                }
+
+                //** CONTENT FILTERED RESULTS
+                if (completionResults.Value.FinishReason == ChatFinishReason.ContentFilter)
+                {
+                    _logger.LogInformation("Chat content filtered");
+#pragma warning disable AOAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+                    ResponseContentFilterResult cfr = AzureChatExtensions.GetResponseContentFilterResult(completionResults);
+#pragma warning restore AOAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+                    _logger.LogInformation($"Chat content filtered: {cfr}");
+                    throw new Exception($"Chat content filtered: {cfr.ToString()}");
+                }
+
+                //** ERROR RESULTS
+                _logger.LogInformation($"Chat did not finish: {completionResults.Value.FinishReason.ToString()}");
+                throw new Exception($"Chat did not finish: {completionResults.Value.FinishReason.ToString()}");
+            }
             catch (Exception ex)
             {
                 _logger.LogInformation(ex.ToString());
